@@ -101,3 +101,152 @@ The UI allows for active engagement. You can click on the **Triangulation Grid**
 <div align="center">
   <p><i>Classified Level 5 Operational Toolkit. Unauthorized access is strictly logged.</i></p>
 </div>
+
+---
+
+## 🖥️ HUD Preview
+
+<div align="center">
+  <img src="docs/assets/hud_preview.png" alt="Ghost-Surge HUD Preview" width="90%" />
+  <p><sub>The Ghost-Surge Tactical HUD — live species classification, oscilloscope, and 3D globe running simultaneously.</sub></p>
+</div>
+
+---
+
+## 🔌 System Architecture
+
+<div align="center">
+  <img src="docs/assets/architecture.png" alt="System Architecture Diagram" width="85%" />
+</div>
+
+### Data Flow
+
+```
+  [ Microphone / WAV File ]
+          │
+          ▼
+  [ sentinel_bridge.py ]  ──── YAMNet ONNX ────►  521-class Audio Classifier
+          │
+          │   WebSocket (ws://localhost:8000)
+          ▼
+  [ Ghost-Surge React HUD ]
+     ├── Live Oscilloscope Waveform
+     ├── Species Probability Bars
+     ├── Forensic Analysis Panel
+     └── SIGINT + Bathymetric Modules
+```
+
+---
+
+## 🧩 Module Breakdown
+
+### Frontend Modules (`frontend/src/`)
+
+| Module | Description |
+|---|---|
+| `LandingPage.tsx` | Animated cinematic landing with typewriter headline and 3D Earth |
+| `CommandHUD.tsx` | Main operational dashboard — oscilloscope, species bars, grid |
+| `ForensicAnalysis.tsx` | Deep-dive panel for acoustic forensic playback and event logs |
+| `Sigint.tsx` | Signals Intelligence module — frequency spectrum analysis |
+| `Bathymetric.tsx` | Ocean depth mapping visualization module |
+| `Sensors.tsx` | Hydrophone sensor network health dashboard |
+| `AnomalyLog.tsx` | Time-series log of all detected anomalies |
+| `TacticalContext.tsx` | Global state management for real-time data streams |
+| `Layout.tsx` | Navigation shell and persistent HUD frame |
+| `SettingsAccount.tsx` | Operator profile and account management |
+| `SettingsSecurity.tsx` | Authentication and access-control configuration |
+| `SettingsAppearance.tsx` | Theme, color filter, and HUD density controls |
+
+### Backend Modules (`backend/`)
+
+| Module | Description |
+|---|---|
+| `audio_engine/sentinel_bridge.py` | Core WebSocket server — streams amplitude arrays and class probabilities |
+| `audio_engine/yamnet.onnx` | Google YAMNet model (~15MB) — classifies 521 audio classes |
+| `audio_engine/yamnet_class_map.csv` | Label map for translating model output indices to class names |
+| `audio_engine/mic_scanner.py` | Utility to enumerate all available microphone devices |
+| `triangulation_logic/tdoa.py` | Time Difference of Arrival (TDOA) math engine |
+| `main_orchestrator.py` | Master launch script — boots both backend and frontend together |
+
+---
+
+## 📶 WebSocket Protocol
+
+The backend sends JSON frames at ~10Hz to all connected HUD clients. Each frame is structured as:
+
+```json
+{
+  "amplitudes": [0.12, 0.45, 0.33, ...],
+  "probabilities": {
+    "Snapping Shrimp":   0.72,
+    "Humpback Whale":    0.15,
+    "Submarine Churn":   0.08,
+    "Submarine Hum":     0.05
+  },
+  "source": "SUBMARINE_CHURN",
+  "timestamp": 1746760412.33
+}
+```
+
+The HUD consumes this stream and renders all panels in a single synchronized frame via React state.
+
+---
+
+## 🏗️ Tech Stack
+
+<div align="center">
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| **HUD Frontend** | React 19 + Vite 6 | Component-based real-time UI |
+| **Styling** | Tailwind CSS 4 + Custom CSS | Matrix-green theme, glassmorphism |
+| **3D Engine** | Spline / Three.js | Interactive Earth model |
+| **Animations** | Framer Motion | Cinematic panel transitions |
+| **AI Model** | YAMNet ONNX | 521-class audio classifier |
+| **Inference** | ONNX Runtime (Python) | CPU-based local inference |
+| **Audio I/O** | SoundDevice (PyAudio) | Microphone capture |
+| **Transport** | WebSockets (Python) | Low-latency streaming |
+| **Orchestration** | Python subprocess | Unified one-command boot |
+
+</div>
+
+---
+
+## 🔊 Supported Audio Signatures
+
+| Signal | Frequency Profile | Threat Level |
+|---|---|---|
+| 🦐 **Snapping Shrimp** | Broadband impulsive noise | ⬜ Benign |
+| 🐋 **Humpback Whale** | 80Hz–4kHz tonal / harmonic | ⬜ Marine Life |
+| 🌊 **Reef Ambient** | Continuous broadband | ⬜ Background |
+| ⚙️ **Submarine Churn** | 10–200Hz low-freq cavitation | 🟥 THREAT |
+| 🛥️ **Submarine Motor** | Narrowband tonal 50–300Hz | 🟥 THREAT |
+| 🔇 **Silence / Unknown** | No dominant frequency | 🟨 Unclassified |
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome. To contribute:
+
+1. Fork this repository.
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Commit your changes: `git commit -m 'feat: add my feature'`
+4. Push: `git push origin feature/my-feature`
+5. Open a Pull Request.
+
+Please keep to the neon green aesthetic and avoid introducing external UI libraries that conflict with the existing Tailwind + custom CSS setup.
+
+---
+
+## 📜 License
+
+This project is MIT licensed. See `LICENSE` for details.
+
+---
+
+<div align="center">
+  <img src="docs/assets/banner.png" alt="Footer Banner" width="100%" />
+  <br/>
+  <sub>Built with 🌊 and classified-level engineering. <b>GHOST-SURGE</b> — The ocean doesn't lie.</sub>
+</div>
