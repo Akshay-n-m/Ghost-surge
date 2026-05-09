@@ -21,11 +21,14 @@ export default function ForensicAnalysis(props: NavigationProps) {
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtx = useRef<AudioContext | null>(null);
   const nextPlayTime = useRef(0);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
 
   useEffect(() => {
     const connectWS = () => {
       setWsStatus('connecting');
-      const socket = new WebSocket('ws://localhost:8000/ws/triangulation');
+      const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/triangulation';
+      const socket = new WebSocket(wsUrl);
       wsRef.current = socket;
 
       socket.onopen = () => setWsStatus('online');
@@ -79,8 +82,63 @@ export default function ForensicAnalysis(props: NavigationProps) {
     };
 
     connectWS();
-    return () => wsRef.current?.close();
+    return () => {
+      wsRef.current?.close();
+      stopMic();
+    };
   }, []);
+
+  const startMic = async () => {
+    try {
+      if (!audioCtx.current) {
+        audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStreamRef.current = stream;
+      
+      const sourceNode = audioCtx.current.createMediaStreamSource(stream);
+      const processor = audioCtx.current.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+
+      processor.onaudioprocess = (e) => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && isPlaying) {
+          const inputData = e.inputBuffer.getChannelData(0);
+          // Convert Float32 to Int16
+          const pcmData = new Int16Array(inputData.length);
+          for (let i = 0; i < inputData.length; i++) {
+            pcmData[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
+          }
+          wsRef.current.send(pcmData.buffer);
+        }
+      };
+
+      sourceNode.connect(processor);
+      processor.connect(audioCtx.current.destination);
+    } catch (err) {
+      console.error("Mic Error:", err);
+      setSource('submarine'); // Fallback
+    }
+  };
+
+  const stopMic = () => {
+    if (processorRef.current) {
+      processorRef.current.disconnect();
+      processorRef.current = null;
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(track => track.stop());
+      micStreamRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (isPlaying && source === 'mic') {
+      startMic();
+    } else {
+      stopMic();
+    }
+  }, [isPlaying, source]);
 
   const toggleStream = () => {
     if (!audioCtx.current) {
@@ -120,8 +178,8 @@ export default function ForensicAnalysis(props: NavigationProps) {
               : 'border-error/40 bg-error/10 text-error'}`}>
             <WifiOff size={12} />
             {wsStatus === 'connecting'
-              ? 'CONNECTING TO SENTINEL BRIDGE... (ws://localhost:8000)'
-              : 'BACKEND OFFLINE — Run sentinel_bridge.py to enable real audio analysis'}
+              ? `CONNECTING TO SENTINEL BRIDGE... (${import.meta.env.VITE_WS_URL || 'ws://localhost:8000'})`
+              : 'BACKEND OFFLINE — Check Render deployment or local sentinel_bridge.py'}
           </div>
         )}
 

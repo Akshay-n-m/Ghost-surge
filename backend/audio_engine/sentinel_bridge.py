@@ -8,15 +8,20 @@ import onnxruntime as ort
 import csv
 import io
 import time
+import os
+import pathlib
+
+# Set up paths relative to this script
+BASE_DIR = pathlib.Path(__file__).parent.resolve()
 
 # --- AI Configuration: Local YAMNet (Unlimited) ---
 print("Initializing Local AI Engine (YAMNet)...")
 try:
-    yamnet_session = ort.InferenceSession("yamnet.onnx")
+    yamnet_session = ort.InferenceSession(str(BASE_DIR / "yamnet.onnx"))
     
     # Load class map
     class_map = {}
-    with open('yamnet_class_map.csv', mode='r', encoding='utf-8') as f:
+    with open(BASE_DIR / 'yamnet_class_map.csv', mode='r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
             class_map[int(row['index'])] = row['display_name']
@@ -27,10 +32,10 @@ except Exception as e:
 
 # Stream Configuration: Real Audio Source
 AUDIO_SOURCES = {
-    "submarine": "submarine_churn_16k.wav",
-    "whale": "whale_song_16k.wav",
-    "shrimp": "shrimp_shrike_16k.wav",
-    "reef": "reef_ambient_16k.wav"
+    "submarine": str(BASE_DIR / "submarine_churn_16k.wav"),
+    "whale": str(BASE_DIR / "whale_song_16k.wav"),
+    "shrimp": str(BASE_DIR / "shrimp_shrike_16k.wav"),
+    "reef": str(BASE_DIR / "reef_ambient_16k.wav")
 }
 
 current_source_id = "submarine"
@@ -82,6 +87,10 @@ async def ws_handler(websocket):
                                     print(f"Error opening {new_source}: {e}")
             except Exception as e:
                 print(f"Error parsing UI message: {e}")
+        elif isinstance(message, bytes):
+            # Incoming audio stream from frontend (for Global Mic feature)
+            if current_source_id == "mic":
+                await process_incoming_audio(message)
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:
@@ -131,6 +140,37 @@ async def get_next_hydrophone_chunk():
     
     await asyncio.sleep(0.064)
     return data
+
+# New buffer for incoming client-side audio
+client_audio_buffer = bytearray()
+client_buffer_duration = 0.0
+
+async def process_incoming_audio(audio_chunk):
+    """Handle audio data sent from the browser client."""
+    global client_audio_buffer, client_buffer_duration, is_classifying
+    
+    client_audio_buffer.extend(audio_chunk)
+    client_buffer_duration += (len(audio_chunk) / 2) / 16000.0
+    
+    # Broadcast back for waveform visualization
+    samples = np.frombuffer(audio_chunk, dtype=np.int16)
+    if len(samples) > 0:
+        peak = np.max(np.abs(samples))
+        norm_amp = min(1.0, float(peak) / 32768.0)
+        await broadcast_anomaly({
+            "type": "audio_stream",
+            "amplitude": norm_amp,
+            "data": base64.b64encode(audio_chunk).decode('utf-8')
+        })
+
+    if client_buffer_duration >= 8.0:
+        buffer_copy = client_audio_buffer.copy()
+        client_audio_buffer.clear()
+        client_buffer_duration = 0.0
+        
+        if not is_classifying:
+            is_classifying = True
+            asyncio.create_task(run_classification_task(buffer_copy))
 
 def classify_with_yamnet(pcm_buffer):
     """Run local ONNX inference on the audio buffer."""
@@ -259,13 +299,16 @@ async def stream_hydrophone_data():
                 asyncio.create_task(run_classification_task(buffer_copy))
 
 async def main():
-    print("Starting WebSocket bridge on ws://localhost:8000...")
+    port = int(os.environ.get("PORT", 8000))
+    print(f"Starting WebSocket bridge on 0.0.0.0:{port}...")
     if has_mic:
         print("\n--- Available Microphones ---")
-        print(sd.query_devices())
+        try:
+            print(sd.query_devices())
+        except: pass
         print(f"CURRENTLY USING MIC ID: {MIC_ID} (Change this in sentinel_bridge.py if needed)\n")
 
-    async with websockets.serve(ws_handler, "localhost", 8000):
+    async with websockets.serve(ws_handler, "0.0.0.0", port):
         while True:
             try:
                 await stream_hydrophone_data()
