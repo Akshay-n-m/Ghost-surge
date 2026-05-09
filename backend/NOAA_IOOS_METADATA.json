@@ -1,0 +1,44 @@
+{
+  "collection_id": "sentinel_reef_bioacoustic_001",
+  "title": "Sentinel-Reef Passive Acoustic Monitoring Network",
+  "description": "Continuous real-time bio-acoustic and anomaly detection data stream from the Sentinel-Reef edge nodes.",
+  "keywords": [
+    "bioacoustics",
+    "underwater anomaly",
+    "TDOA",
+    "passive acoustic monitoring",
+    "PAM"
+  ],
+  "creator": {
+    "name": "Sentinel-Reef Defense Project",
+    "type": "Organization",
+    "contact": "data-steward@sentinel-reef.mil"
+  },
+  "temporal_coverage": {
+    "start_date": "2026-05-08T00:00:00Z",
+    "ongoing": true
+  },
+  "spatial_coverage": {
+    "type": "BoundingBox",
+    "coordinates": [
+      [24.5, -81.5],
+      [25.0, -80.0]
+    ]
+  },
+  "variables": [
+    {
+      "name": "acoustic_pressure",
+      "units": "uPa",
+      "sensor_type": "Hydrophone Array"
+    },
+    {
+      "name": "anomaly_confidence",
+      "units": "probability",
+      "sensor_type": "Gemini 3.1 Flash Live"
+    }
+  ],
+  "compliance": {
+    "standards": ["ISO 18405:2017", "FAIR Data Principles"],
+    "access_level": "Restricted/Defense-Grade"
+  }
+}
