@@ -38,7 +38,8 @@ export default function Sigint(props: NavigationProps) {
     // Generate some initial random data for the bar chart
     setAmplitudes(Array.from({length: 32}, () => 0.05));
 
-    const socket = new WebSocket('ws://localhost:8000/ws/triangulation');
+    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/triangulation';
+    const socket = new WebSocket(wsUrl);
     wsRef.current = socket;
     
     socket.onmessage = (event) => {
