@@ -63,34 +63,35 @@ async def ws_handler(websocket):
     print(f"UI connected to WebSocket. Total clients: {len(connected_clients)}")
     try:
         async for message in websocket:
-            try:
-                data = json.loads(message)
-                if data.get("type") == "control":
-                    action = data.get("action")
-                    if action == "start":
-                        stream_active.set()
-                        print("Stream STARTED by UI.")
-                    elif action == "stop":
-                        stream_active.clear()
-                        print("Stream STOPPED by UI.")
-                    elif action == "change_source":
-                        new_source = data.get("value")
-                        global current_source_id, wav_reader
-                        if new_source in AUDIO_SOURCES or new_source == "mic":
-                            print(f"Switching source to: {new_source}")
-                            current_source_id = new_source
-                            if new_source != "mic":
-                                if wav_reader: wav_reader.close()
-                                try:
-                                    wav_reader = wave.open(AUDIO_SOURCES[new_source], 'rb')
-                                except Exception as e:
-                                    print(f"Error opening {new_source}: {e}")
-            except Exception as e:
-                print(f"Error parsing UI message: {e}")
-        elif isinstance(message, bytes):
-            # Incoming audio stream from frontend (for Global Mic feature)
-            if current_source_id == "mic":
-                await process_incoming_audio(message)
+            if isinstance(message, str):
+                try:
+                    data = json.loads(message)
+                    if data.get("type") == "control":
+                        action = data.get("action")
+                        if action == "start":
+                            stream_active.set()
+                            print("Stream STARTED by UI.")
+                        elif action == "stop":
+                            stream_active.clear()
+                            print("Stream STOPPED by UI.")
+                        elif action == "change_source":
+                            new_source = data.get("value")
+                            global current_source_id, wav_reader
+                            if new_source in AUDIO_SOURCES or new_source == "mic":
+                                print(f"Switching source to: {new_source}")
+                                current_source_id = new_source
+                                if new_source != "mic":
+                                    if wav_reader: wav_reader.close()
+                                    try:
+                                        wav_reader = wave.open(AUDIO_SOURCES[new_source], 'rb')
+                                    except Exception as e:
+                                        print(f"Error opening {new_source}: {e}")
+                except Exception as e:
+                    print(f"Error parsing UI message: {e}")
+            elif isinstance(message, bytes):
+                # Incoming audio stream from frontend (for Global Mic feature)
+                if current_source_id == "mic":
+                    await process_incoming_audio(message)
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:
